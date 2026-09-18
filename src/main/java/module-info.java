@@ -1,4 +1,5 @@
 module com.example.siomanager {
+    requires java.prefs;
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.swing;

@@ -1,5 +1,7 @@
 # SIOManager
 
+> Version actuelle : **1.0.0** — [consulter les notes de publication](RELEASE_NOTES_v1.0.0.md)
+
 SIOManager est une application de bureau destinée à centraliser les cours et les ressources d'une classe de BTS SIO. L'objectif est de réunir dans une même interface la consultation des cours, l'édition légère de code et l'exécution locale de petits programmes.
 
 L'application vise les environnements Linux/Debian et Windows. Son interface s'inspire de l'organisation générale d'Obsidian et des IDE comme IntelliJ IDEA et Visual Studio Code : explorateur à gauche, documents au centre, console en bas et paramètres dans une fenêtre séparée.
@@ -9,7 +11,15 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 ## Fonctionnalités actuelles
 
 - interface JavaFX sombre et redimensionnable ;
+- interface compacte par défaut, avec zoom global réglable de 83 à 133 % ;
+- panneaux latéral et inférieur redimensionnables à la souris ;
+- masquage rapide de l'explorateur et du panneau inférieur ;
+- mémorisation du zoom, de la taille de fenêtre et de la position des séparateurs ;
 - explorateur de ressources récursif ;
+- détection automatique des dossiers et fichiers présents dans `demo-content/` ;
+- actualisation de l'arborescence sans redémarrer l'application ;
+- création depuis l'interface de dossiers, cours Markdown et fichiers Java, HTML, SQL ou Bash ;
+- modèles de départ automatiques et validation des noms sous Linux et Windows ;
 - classement par enseignements communs, SISR et SLAM ;
 - présence de la CEJM, des mathématiques, de l'anglais et de la culture générale ;
 - dossiers de chapitres et sous-dossiers ;
@@ -40,7 +50,7 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 - authentification et gestion des droits ;
 - stockage des cours et ressources ;
 - synchronisation et consultation hors ligne ;
-- import automatique d'arborescences de cours ;
+- import d'arborescences depuis une API distante ;
 - création d'installateurs Linux et Windows.
 
 ## Technologies
@@ -118,6 +128,24 @@ L'application peut être arrêtée avec `Ctrl+C` dans le terminal ou avec le bou
 
 Avant une exécution, SIOManager enregistre automatiquement le document modifié. Un fichier Java est compilé dans `target/siomanager-run/`, puis lancé avec le JDK qui exécute l'application. Les scripts Bash sont pris en charge sous Linux ; sous Windows, Bash ou WSL devra être configuré lors d'une étape ultérieure. Les fichiers SQL nécessiteront une connexion de base de données et HTML pourra ensuite être associé à un aperçu navigateur.
 
+## Personnaliser la disposition
+
+Les séparateurs entre l'explorateur, l'éditeur et le panneau inférieur se déplacent directement à la souris. La position choisie est restaurée au prochain lancement.
+
+| Action | Raccourci |
+| --- | --- |
+| Afficher ou masquer l'explorateur | `Ctrl+B` |
+| Afficher ou masquer le panneau inférieur | `Ctrl+J` |
+| Réduire l'interface | `Ctrl+-` |
+| Agrandir l'interface | `Ctrl++` |
+| Revenir à la taille normale | `Ctrl+0` |
+| Exécuter le fichier sélectionné | `F6` |
+| Enregistrer | `Ctrl+S` |
+| Créer une ressource | `Ctrl+N` |
+| Actualiser les ressources | `F5` |
+
+Le menu `Affichage` permet également de contrôler les panneaux, le zoom ou de réinitialiser entièrement la disposition. Sous macOS, la touche de raccourci principale est automatiquement `⌘` à la place de `Ctrl`.
+
 ## Compiler le projet
 
 Sous Linux :
@@ -169,16 +197,18 @@ SIOManager/
     │   │   │   ├── ResourceNode.java
     │   │   │   └── ResourceType.java
     │   │   ├── repository/
-    │   │   │   └── DemoResourceRepository.java
+    │   │   │   └── LocalResourceRepository.java
     │   │   ├── service/
     │   │   │   ├── CodeExecutionService.java
     │   │   │   ├── DemoContentInitializer.java
     │   │   │   ├── LocalFileService.java
     │   │   │   ├── MarkdownRendererService.java
+    │   │   │   ├── ResourceCreationService.java
     │   │   │   └── SyntaxHighlighter.java
     │   │   └── view/
     │   │       ├── DocumentSession.java
     │   │       ├── PdfDocumentView.java
+    │   │       ├── ResourceCreationDialog.java
     │   │       ├── ResourceDocumentFactory.java
     │   │       └── ResourceTreeCell.java
     │   └── resources/com/example/siomanager/
@@ -188,11 +218,13 @@ SIOManager/
     │           └── application.css
     └── test/java/com/example/siomanager/
         ├── model/ResourceNodeTest.java
+        ├── repository/LocalResourceRepositoryTest.java
         └── service/
             ├── CodeExecutionServiceTest.java
             ├── DemoContentInitializerTest.java
             ├── LocalFileServiceTest.java
             ├── MarkdownRendererServiceTest.java
+            ├── ResourceCreationServiceTest.java
             └── SyntaxHighlighterTest.java
 ```
 
@@ -202,14 +234,16 @@ SIOManager/
 - `MainController` coordonne l'explorateur, les onglets, la console et les paramètres.
 - `ResourceNode` représente une ressource et ses éventuels enfants.
 - `ResourceType` distingue sections, matières, dossiers, Markdown, PDF et code.
-- `DemoResourceRepository` fournit temporairement une arborescence locale de démonstration.
+- `LocalResourceRepository` analyse récursivement le dossier local et construit l'arborescence.
 - `LocalFileService` lit et enregistre les fichiers texte en UTF-8.
+- `ResourceCreationService` valide les noms et crée les dossiers ou fichiers avec un modèle adapté.
 - `CodeExecutionService` compile et exécute Java ou lance Bash sans bloquer l'interface.
 - `SyntaxHighlighter` choisit les règles de coloration selon l'extension du fichier.
 - `MarkdownRendererService` transforme le Markdown en HTML et neutralise le HTML et les URL dangereuses.
 - `DemoContentInitializer` crée les PDF de démonstration manquants au premier lancement.
 - `DocumentSession` conserve l'état ouvert ou modifié d'un document.
 - `PdfDocumentView` charge, rend, pagine et zoome les documents PDF.
+- `ResourceCreationDialog` recueille le type et le nom d'une nouvelle ressource.
 - `ResourceTreeCell` personnalise l'affichage des éléments dans l'explorateur.
 - `ResourceDocumentFactory` crée la vue correspondant au type de fichier ouvert.
 - les fichiers FXML décrivent la disposition des fenêtres.
@@ -235,7 +269,7 @@ Ressources
     └── Cybersécurité
 ```
 
-Chaque matière peut contenir autant de chapitres, sous-dossiers et fichiers que nécessaire. Cette structure récursive pourra ensuite être alimentée par une API sans modifier le fonctionnement général de l'interface.
+Chaque matière peut contenir autant de chapitres, sous-dossiers et fichiers que nécessaire. L'arborescence est reconstruite automatiquement depuis le contenu réel de `demo-content/` et pourra ensuite être alimentée par une API sans modifier le fonctionnement général de l'interface.
 
 Les fichiers Markdown, les exemples de code et les PDF sont actuellement chargés depuis `demo-content/`. Ce dossier fait partie du prototype : enregistrer un document depuis l'application modifie réellement le fichier correspondant dans ce dossier.
 
@@ -249,7 +283,7 @@ La commande suivante est utilisée pour valider le prototype :
 
 La compilation et le lancement sont actuellement validés avec Microsoft OpenJDK 25. Maven active explicitement les accès natifs requis par JavaFX 26 et l'accès utilisé par PDFBox lors du lancement.
 
-Les onze tests automatisés actuels passent avec JUnit 5 et Maven Surefire 3.6.0.
+Les quinze tests automatisés actuels passent avec JUnit 5 et Maven Surefire 3.6.0.
 
 ## Convention de commits
 

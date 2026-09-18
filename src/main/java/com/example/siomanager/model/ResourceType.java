@@ -7,7 +7,8 @@ public enum ResourceType {
     FOLDER("▰", "resource-folder", true),
     MARKDOWN("M↓", "resource-markdown", false),
     PDF("PDF", "resource-pdf", false),
-    SOURCE_CODE("</>", "resource-code", false);
+    SOURCE_CODE("</>", "resource-code", false),
+    OTHER("•", "resource-other", false);
 
     private final String symbol;
     private final String cssClass;

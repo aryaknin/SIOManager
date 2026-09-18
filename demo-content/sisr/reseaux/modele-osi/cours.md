@@ -11,5 +11,3 @@ Le modèle OSI organise les communications réseau en sept couches.
 7. Application
 
 Cette séparation facilite la compréhension et le dépannage d'un réseau.
-
-aassas
