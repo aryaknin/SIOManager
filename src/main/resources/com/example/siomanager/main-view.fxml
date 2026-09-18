@@ -32,7 +32,10 @@
                     <MenuItem text="Quitter" onAction="#closeApplication"/>
                 </Menu>
                 <Menu text="Affichage"/>
-                <Menu text="Exécuter"/>
+                <Menu text="Exécuter">
+                    <MenuItem accelerator="F6" onAction="#runSelectedDocument" text="Exécuter le fichier"/>
+                    <MenuItem onAction="#stopExecution" text="Arrêter"/>
+                </Menu>
                 <Menu text="Aide"/>
             </MenuBar>
             <ToolBar styleClass="main-toolbar">
@@ -41,6 +44,7 @@
                 <Label styleClass="toolbar-context" text="Espace de travail BTS SIO"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Button onAction="#saveSelectedDocument" styleClass="toolbar-button" text="Enregistrer"/>
+                <Button onAction="#runSelectedDocument" styleClass="toolbar-button" text="▶  Exécuter"/>
                 <Button onAction="#openSettings" styleClass="toolbar-button" text="⚙  Paramètres"/>
             </ToolBar>
         </VBox>
@@ -87,7 +91,7 @@
                             </tabs>
                         </TabPane>
 
-                        <TabPane styleClass="bottom-panel" tabClosingPolicy="UNAVAILABLE">
+                        <TabPane fx:id="bottomTabs" styleClass="bottom-panel" tabClosingPolicy="UNAVAILABLE">
                             <tabs>
                                 <Tab text="CONSOLE">
                                     <content>
@@ -103,7 +107,21 @@
                                         </BorderPane>
                                     </content>
                                 </Tab>
-                                <Tab text="SORTIE"/>
+                                <Tab fx:id="outputTab" text="SORTIE">
+                                    <content>
+                                        <BorderPane>
+                                            <top>
+                                                <HBox alignment="CENTER_RIGHT" spacing="6.0" styleClass="console-actions">
+                                                    <Button onAction="#stopExecution" styleClass="small-button" text="Arrêter"/>
+                                                    <Button onAction="#clearOutput" styleClass="small-button" text="Effacer"/>
+                                                </HBox>
+                                            </top>
+                                            <center>
+                                                <TextArea fx:id="outputArea" editable="false" styleClass="console-area" wrapText="true"/>
+                                            </center>
+                                        </BorderPane>
+                                    </content>
+                                </Tab>
                                 <Tab text="PROBLÈMES"/>
                             </tabs>
                         </TabPane>

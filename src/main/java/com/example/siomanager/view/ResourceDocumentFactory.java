@@ -2,23 +2,27 @@ package com.example.siomanager.view;
 
 import com.example.siomanager.model.ResourceNode;
 import com.example.siomanager.service.LocalFileService;
-import javafx.geometry.Insets;
+import com.example.siomanager.service.MarkdownRendererService;
+import com.example.siomanager.service.SyntaxHighlighter;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
+import org.fxmisc.flowless.VirtualizedScrollPane;
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
 
 import java.io.IOException;
 
 public final class ResourceDocumentFactory {
     private final LocalFileService fileService;
+    private final MarkdownRendererService markdownRenderer = new MarkdownRendererService();
+    private final SyntaxHighlighter syntaxHighlighter = new SyntaxHighlighter();
 
     public ResourceDocumentFactory(LocalFileService fileService) {
         this.fileService = fileService;
@@ -27,7 +31,7 @@ public final class ResourceDocumentFactory {
     public DocumentSession create(ResourceNode resource) throws IOException {
         return switch (resource.type()) {
             case MARKDOWN -> createMarkdownSession(resource);
-            case PDF -> createReadOnlySession(resource, createPdfView(resource));
+            case PDF -> createPdfSession(resource);
             case SOURCE_CODE -> createCodeSession(resource);
             default -> createReadOnlySession(resource, createUnsupportedView(resource));
         };
@@ -35,6 +39,7 @@ public final class ResourceDocumentFactory {
 
     private DocumentSession createMarkdownSession(ResourceNode resource) throws IOException {
         String initialContent = fileService.readText(resource);
+        CodeArea editor = createEditor(resource, initialContent, "markdown-code-area");
 
         ToggleButton editButton = new ToggleButton("Édition");
         ToggleButton previewButton = new ToggleButton("Aperçu");
@@ -46,22 +51,12 @@ public final class ResourceDocumentFactory {
         previewButton.setToggleGroup(modeGroup);
         editButton.setSelected(true);
 
-        TextArea editor = new TextArea(initialContent);
-        editor.getStyleClass().add("markdown-editor");
-
-        Label previewText = styledLabel(initialContent, "markdown-preview-content");
-        VBox preview = new VBox(14,
-                styledLabel(displayTitle(resource.name()), "markdown-preview-title"),
-                previewText
-        );
-        preview.setPadding(new Insets(34));
-        preview.getStyleClass().add("markdown-preview");
-
-        ScrollPane previewScroll = new ScrollPane(preview);
-        previewScroll.setFitToWidth(true);
-        previewScroll.getStyleClass().add("markdown-preview-scroll");
-        previewScroll.setVisible(false);
-        previewScroll.setManaged(false);
+        VirtualizedScrollPane<CodeArea> editorScroll = new VirtualizedScrollPane<>(editor);
+        WebView preview = new WebView();
+        preview.getEngine().setJavaScriptEnabled(false);
+        preview.getStyleClass().add("markdown-web-view");
+        preview.setVisible(false);
+        preview.setManaged(false);
 
         modeGroup.selectedToggleProperty().addListener((observable, previous, selected) -> {
             if (selected == null) {
@@ -71,19 +66,22 @@ public final class ResourceDocumentFactory {
 
             boolean editing = selected == editButton;
             if (!editing) {
-                previewText.setText(editor.getText());
+                preview.getEngine().loadContent(
+                        markdownRenderer.renderPage(editor.getText(), displayTitle(resource.name())),
+                        "text/html"
+                );
             }
-            editor.setVisible(editing);
-            editor.setManaged(editing);
-            previewScroll.setVisible(!editing);
-            previewScroll.setManaged(!editing);
+            editorScroll.setVisible(editing);
+            editorScroll.setManaged(editing);
+            preview.setVisible(!editing);
+            preview.setManaged(!editing);
         });
 
         HBox toolbar = new HBox(6, editButton, previewButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.getStyleClass().add("document-toolbar");
 
-        StackPane content = new StackPane(editor, previewScroll);
+        StackPane content = new StackPane(editorScroll, preview);
         BorderPane document = new BorderPane(content);
         document.setTop(toolbar);
         document.getStyleClass().add("document-view");
@@ -93,7 +91,10 @@ public final class ResourceDocumentFactory {
                 document,
                 () -> fileService.saveText(resource, editor.getText())
         );
-        editor.textProperty().addListener((observable, previous, current) -> session.markModified());
+        editor.textProperty().addListener((observable, previous, current) -> {
+            session.markModified();
+            applyHighlighting(editor, resource.name());
+        });
         return session;
     }
 
@@ -105,10 +106,10 @@ public final class ResourceDocumentFactory {
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.getStyleClass().add("document-toolbar");
 
-        TextArea editor = new TextArea(initialContent);
-        editor.getStyleClass().add("code-editor-placeholder");
+        CodeArea editor = createEditor(resource, initialContent, "source-code-area");
+        VirtualizedScrollPane<CodeArea> editorScroll = new VirtualizedScrollPane<>(editor);
 
-        BorderPane document = new BorderPane(editor);
+        BorderPane document = new BorderPane(editorScroll);
         document.setTop(toolbar);
         document.getStyleClass().add("document-view");
 
@@ -117,19 +118,29 @@ public final class ResourceDocumentFactory {
                 document,
                 () -> fileService.saveText(resource, editor.getText())
         );
-        editor.textProperty().addListener((observable, previous, current) -> session.markModified());
+        editor.textProperty().addListener((observable, previous, current) -> {
+            session.markModified();
+            applyHighlighting(editor, resource.name());
+        });
         return session;
     }
 
-    private Node createPdfView(ResourceNode resource) {
-        VBox content = new VBox(12,
-                styledLabel("PDF", "document-type-badge"),
-                styledLabel(resource.name(), "document-title"),
-                styledLabel("Le lecteur PDF sera connecté à cet emplacement.", "muted-label")
-        );
-        content.setAlignment(Pos.CENTER);
-        content.getStyleClass().add("document-placeholder");
-        return content;
+    private CodeArea createEditor(ResourceNode resource, String initialContent, String styleClass) {
+        CodeArea editor = new CodeArea();
+        editor.getStyleClass().addAll("code-area", styleClass);
+        editor.setParagraphGraphicFactory(LineNumberFactory.get(editor));
+        editor.replaceText(initialContent);
+        applyHighlighting(editor, resource.name());
+        return editor;
+    }
+
+    private void applyHighlighting(CodeArea editor, String filename) {
+        editor.setStyleSpans(0, syntaxHighlighter.compute(editor.getText(), filename));
+    }
+
+    private DocumentSession createPdfSession(ResourceNode resource) throws IOException {
+        PdfDocumentView view = new PdfDocumentView(resource.localPath());
+        return new DocumentSession(resource, view, null, view::close);
     }
 
     private Node createUnsupportedView(ResourceNode resource) {

@@ -224,15 +224,81 @@
     -fx-text-fill: #ffffff;
 }
 
-.markdown-editor,
-.markdown-editor .content,
-.code-editor-placeholder,
-.code-editor-placeholder .content {
+.code-area {
     -fx-background-color: #1e1f22;
-    -fx-text-fill: #dfe1e5;
-    -fx-highlight-fill: #2f5485;
     -fx-font-family: "JetBrains Mono", "Noto Sans Mono", monospace;
     -fx-font-size: 14px;
+    -fx-padding: 8 0 16 0;
+}
+
+.code-area .text {
+    -fx-fill: #dfe1e5;
+}
+
+.code-area .caret {
+    -fx-stroke: #f2f3f5;
+}
+
+.code-area .selection {
+    -fx-fill: #2f5485;
+}
+
+.code-area .lineno {
+    -fx-background-color: #25262a;
+    -fx-text-fill: #6f737b;
+    -fx-padding: 0 10 0 7;
+}
+
+.code-area .keyword {
+    -fx-fill: #cf8e6d;
+    -fx-font-weight: bold;
+}
+
+.code-area .string {
+    -fx-fill: #6aab73;
+}
+
+.code-area .comment,
+.code-area .quote {
+    -fx-fill: #7a7e85;
+    -fx-font-style: italic;
+}
+
+.code-area .number {
+    -fx-fill: #2aacb8;
+}
+
+.code-area .annotation,
+.code-area .attribute {
+    -fx-fill: #bbb529;
+}
+
+.code-area .tag,
+.code-area .heading {
+    -fx-fill: #56a8f5;
+    -fx-font-weight: bold;
+}
+
+.code-area .variable,
+.code-area .link {
+    -fx-fill: #c77dbb;
+}
+
+.code-area .code,
+.code-area .emphasis {
+    -fx-fill: #e6b673;
+}
+
+.code-area .paren,
+.code-area .brace,
+.code-area .bracket {
+    -fx-fill: #b3ae60;
+    -fx-font-weight: bold;
+}
+
+.virtualized-scroll-pane,
+.virtualized-scroll-pane .viewport {
+    -fx-background-color: #1e1f22;
 }
 
 .markdown-preview-title,
@@ -246,6 +312,10 @@
 .markdown-preview-scroll > .viewport {
     -fx-background-color: #1e1f22;
     -fx-border-color: transparent;
+}
+
+.markdown-web-view {
+    -fx-background-color: #1e1f22;
 }
 
 .markdown-preview-content {
@@ -274,6 +344,26 @@
 .document-filename {
     -fx-font-family: "JetBrains Mono", "Noto Sans Mono", monospace;
     -fx-text-fill: #dfe1e5;
+}
+
+.pdf-viewer,
+.pdf-scroll-pane,
+.pdf-scroll-pane > .viewport,
+.pdf-page-container {
+    -fx-background-color: #18191b;
+}
+
+.pdf-page-container {
+    -fx-padding: 24;
+}
+
+.pdf-page-container .image-view {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 18, 0.15, 0, 4);
+}
+
+.pdf-toolbar-button {
+    -fx-min-width: 30px;
+    -fx-padding: 3 8;
 }
 
 .bottom-panel {

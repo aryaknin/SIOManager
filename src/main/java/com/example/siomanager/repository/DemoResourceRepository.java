@@ -18,6 +18,10 @@ public class DemoResourceRepository {
         this.contentRoot = contentRoot.toAbsolutePath().normalize();
     }
 
+    public Path contentRoot() {
+        return contentRoot;
+    }
+
     public ResourceNode loadTree() {
         return branch("root", "Ressources", ResourceType.ROOT,
                 commonResources(),

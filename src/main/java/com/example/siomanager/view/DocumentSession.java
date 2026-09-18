@@ -17,12 +17,19 @@ public final class DocumentSession {
     private final ResourceNode resource;
     private final Node content;
     private final SaveAction saveAction;
+    private final Runnable closeAction;
     private final BooleanProperty modified = new SimpleBooleanProperty(false);
+    private boolean closed;
 
     public DocumentSession(ResourceNode resource, Node content, SaveAction saveAction) {
+        this(resource, content, saveAction, () -> { });
+    }
+
+    public DocumentSession(ResourceNode resource, Node content, SaveAction saveAction, Runnable closeAction) {
         this.resource = resource;
         this.content = content;
         this.saveAction = saveAction;
+        this.closeAction = closeAction;
     }
 
     public ResourceNode resource() {
@@ -55,5 +62,12 @@ public final class DocumentSession {
         }
         saveAction.save();
         modified.set(false);
+    }
+
+    public void close() {
+        if (!closed) {
+            closed = true;
+            closeAction.run();
+        }
     }
 }

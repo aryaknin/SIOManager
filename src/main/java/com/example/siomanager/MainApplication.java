@@ -21,6 +21,8 @@ public class MainApplication extends Application {
         stage.setOnCloseRequest(event -> {
             if (!controller.confirmCloseAll()) {
                 event.consume();
+            } else {
+                controller.dispose();
             }
         });
         stage.show();

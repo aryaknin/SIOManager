@@ -1,11 +1,15 @@
 package com.example.siomanager;
 
 import com.example.siomanager.model.ResourceNode;
+import com.example.siomanager.model.ResourceType;
 import com.example.siomanager.repository.DemoResourceRepository;
+import com.example.siomanager.service.CodeExecutionService;
+import com.example.siomanager.service.DemoContentInitializer;
 import com.example.siomanager.service.LocalFileService;
 import com.example.siomanager.view.DocumentSession;
 import com.example.siomanager.view.ResourceDocumentFactory;
 import com.example.siomanager.view.ResourceTreeCell;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -30,6 +34,8 @@ import java.util.Optional;
 
 public class MainController {
     private final DemoResourceRepository resourceRepository = new DemoResourceRepository();
+    private final DemoContentInitializer demoContentInitializer = new DemoContentInitializer();
+    private final CodeExecutionService executionService = new CodeExecutionService();
     private final ResourceDocumentFactory documentFactory =
             new ResourceDocumentFactory(new LocalFileService());
 
@@ -40,13 +46,28 @@ public class MainController {
     private TabPane editorTabs;
 
     @FXML
+    private TabPane bottomTabs;
+
+    @FXML
+    private Tab outputTab;
+
+    @FXML
     private TextArea consoleArea;
+
+    @FXML
+    private TextArea outputArea;
 
     @FXML
     private Label statusLabel;
 
     @FXML
     private void initialize() {
+        try {
+            demoContentInitializer.ensurePdfSamples(resourceRepository.contentRoot());
+        } catch (IOException exception) {
+            writeConsole("Les PDF de démonstration n’ont pas pu être créés : " + exception.getMessage());
+        }
+
         resourceTree.setRoot(toTreeItem(resourceRepository.loadTree()));
         resourceTree.getRoot().setExpanded(true);
         resourceTree.setShowRoot(false);
@@ -109,6 +130,7 @@ public class MainController {
                     event.consume();
                 }
             });
+            tab.setOnClosed(event -> session.close());
 
             session.modifiedProperty().addListener((observable, previous, modified) ->
                     tab.setText(resource.name() + (modified ? " *" : ""))
@@ -150,6 +172,56 @@ public class MainController {
     }
 
     @FXML
+    private void clearOutput() {
+        outputArea.clear();
+    }
+
+    @FXML
+    private void runSelectedDocument() {
+        Tab selectedTab = editorTabs.getSelectionModel().getSelectedItem();
+        if (selectedTab == null || !(selectedTab.getUserData() instanceof DocumentSession session)) {
+            writeConsole("Sélectionne d’abord un fichier de code.");
+            return;
+        }
+        if (session.resource().type() != ResourceType.SOURCE_CODE) {
+            writeConsole("La ressource sélectionnée n’est pas un fichier de code exécutable.");
+            return;
+        }
+        if (session.isModified() && !saveSession(session)) {
+            return;
+        }
+
+        try {
+            bottomTabs.getSelectionModel().select(outputTab);
+            outputArea.appendText(System.lineSeparator() + "——— " + session.resource().name() + " ———"
+                    + System.lineSeparator());
+            executionService.execute(
+                    session.resource(),
+                    line -> Platform.runLater(() -> outputArea.appendText(line + System.lineSeparator())),
+                    result -> Platform.runLater(() -> {
+                        outputArea.appendText(result.message() + System.lineSeparator());
+                        statusLabel.setText(result.cancelled() ? "Exécution arrêtée" : result.message());
+                    })
+            );
+            statusLabel.setText("Exécution • " + session.resource().name());
+            writeConsole("Lancement : " + session.resource().localPath());
+        } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+            showError("Impossible d’exécuter ce fichier", exception.getMessage());
+            writeConsole("Erreur d’exécution : " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void stopExecution() {
+        if (!executionService.isRunning()) {
+            writeConsole("Aucun programme n’est en cours d’exécution.");
+            return;
+        }
+        executionService.stop();
+        writeConsole("Arrêt du programme demandé.");
+    }
+
+    @FXML
     private void openSettings() {
         try {
             FXMLLoader loader = new FXMLLoader(MainApplication.class.getResource("settings-view.fxml"));
@@ -171,9 +243,7 @@ public class MainController {
     @FXML
     private void closeApplication() {
         Stage stage = (Stage) editorTabs.getScene().getWindow();
-        if (confirmCloseAll()) {
-            stage.hide();
-        }
+        stage.close();
     }
 
     public boolean confirmCloseAll() {
@@ -184,6 +254,15 @@ public class MainController {
             }
         }
         return true;
+    }
+
+    public void dispose() {
+        executionService.close();
+        for (Tab tab : editorTabs.getTabs()) {
+            if (tab.getUserData() instanceof DocumentSession session) {
+                session.close();
+            }
+        }
     }
 
     private boolean confirmClose(DocumentSession session) {

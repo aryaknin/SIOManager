@@ -1,6 +1,6 @@
 # SIOManager
 
-SIOManager est une application de bureau destinée à centraliser les cours et les ressources d'une classe de BTS SIO. L'objectif est de réunir dans une même interface la consultation des cours, l'édition légère de code et, à terme, l'exécution locale de programmes.
+SIOManager est une application de bureau destinée à centraliser les cours et les ressources d'une classe de BTS SIO. L'objectif est de réunir dans une même interface la consultation des cours, l'édition légère de code et l'exécution locale de petits programmes.
 
 L'application vise les environnements Linux/Debian et Windows. Son interface s'inspire de l'organisation générale d'Obsidian et des IDE comme IntelliJ IDEA et Visual Studio Code : explorateur à gauche, documents au centre, console en bas et paramètres dans une fenêtre séparée.
 
@@ -20,19 +20,21 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 - indication `*` sur les onglets contenant des changements non enregistrés ;
 - confirmation avant la fermeture d'un document modifié ;
 - prévention de l'ouverture en double d'une même ressource ;
-- squelette d'éditeur Markdown avec modes `Édition` et `Aperçu` ;
-- éditeur texte provisoire pour Java, HTML, SQL et Bash ;
-- emplacement réservé au futur lecteur PDF ;
+- éditeur Markdown avec numéros de ligne, coloration et modes `Édition` / `Aperçu` ;
+- rendu CommonMark dans un aperçu HTML sombre, avec JavaScript désactivé ;
+- éditeur de code RichTextFX avec numéros de ligne ;
+- coloration syntaxique pour Java, HTML/XML/FXML, SQL et Bash ;
+- lecteur PDF avec rendu en arrière-plan, pagination et zoom de 50 à 250 % ;
+- trois PDF de démonstration générés automatiquement s'ils sont absents ;
+- compilation puis exécution des fichiers Java dans un processus séparé ;
+- exécution des scripts Bash sous Linux, avec message explicite sous Windows ;
+- panneau `SORTIE` dédié aux programmes, raccourci `F6` et bouton d'arrêt ;
 - panneau inférieur avec console, sortie et problèmes ;
 - fenêtre de paramètres ;
 - thème CSS inspiré des environnements de développement.
 
 ## Fonctionnalités prévues
 
-- coloration syntaxique avec RichTextFX ;
-- rendu Markdown complet ;
-- lecteur PDF avec navigation et zoom ;
-- compilation et exécution locale du code ;
 - console interactive ;
 - API serveur avec Spring Boot ;
 - authentification et gestion des droits ;
@@ -46,9 +48,12 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 | Élément | Technologie |
 | --- | --- |
 | Langage | Java 25 |
-| Interface | JavaFX 21.0.6 |
+| Interface | JavaFX 26.0.2 |
 | Description des vues | FXML |
 | Apparence | CSS JavaFX |
+| Éditeur enrichi | RichTextFX 0.11.7 |
+| Rendu Markdown | commonmark-java 0.30.0 + JavaFX WebView |
+| Lecture PDF | Apache PDFBox 3.0.8 |
 | Construction | Maven Wrapper |
 | Tests | JUnit 5 |
 | IDE conseillé | IntelliJ IDEA |
@@ -103,6 +108,16 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 
 L'application peut être arrêtée avec `Ctrl+C` dans le terminal ou avec le bouton d'arrêt d'IntelliJ.
 
+## Éditer et exécuter un fichier
+
+1. Déplier une matière puis un chapitre dans l'explorateur.
+2. Double-cliquer sur un fichier Markdown, Java, HTML, SQL, Bash ou PDF.
+3. Enregistrer les modifications avec `Ctrl+S`.
+4. Pour un fichier Java ou Bash, cliquer sur `▶ Exécuter` ou appuyer sur `F6`.
+5. Consulter la compilation et le résultat dans l'onglet inférieur `SORTIE`.
+
+Avant une exécution, SIOManager enregistre automatiquement le document modifié. Un fichier Java est compilé dans `target/siomanager-run/`, puis lancé avec le JDK qui exécute l'application. Les scripts Bash sont pris en charge sous Linux ; sous Windows, Bash ou WSL devra être configuré lors d'une étape ultérieure. Les fichiers SQL nécessiteront une connexion de base de données et HTML pourra ensuite être associé à un aperçu navigateur.
+
 ## Compiler le projet
 
 Sous Linux :
@@ -133,7 +148,7 @@ Sous Windows :
 .\mvnw.cmd test
 ```
 
-Les tests actuels vérifient la cohérence du modèle de ressources ainsi que la lecture, la création et l'enregistrement de fichiers UTF-8.
+Les tests actuels vérifient la cohérence du modèle de ressources, la lecture et l'enregistrement de fichiers UTF-8, la coloration syntaxique, le rendu Markdown sécurisé, la génération de PDF lisibles ainsi que la compilation et l'exécution d'un vrai programme Java.
 
 ## Architecture actuelle
 
@@ -156,9 +171,14 @@ SIOManager/
     │   │   ├── repository/
     │   │   │   └── DemoResourceRepository.java
     │   │   ├── service/
-    │   │   │   └── LocalFileService.java
+    │   │   │   ├── CodeExecutionService.java
+    │   │   │   ├── DemoContentInitializer.java
+    │   │   │   ├── LocalFileService.java
+    │   │   │   ├── MarkdownRendererService.java
+    │   │   │   └── SyntaxHighlighter.java
     │   │   └── view/
     │   │       ├── DocumentSession.java
+    │   │       ├── PdfDocumentView.java
     │   │       ├── ResourceDocumentFactory.java
     │   │       └── ResourceTreeCell.java
     │   └── resources/com/example/siomanager/
@@ -168,7 +188,12 @@ SIOManager/
     │           └── application.css
     └── test/java/com/example/siomanager/
         ├── model/ResourceNodeTest.java
-        └── service/LocalFileServiceTest.java
+        └── service/
+            ├── CodeExecutionServiceTest.java
+            ├── DemoContentInitializerTest.java
+            ├── LocalFileServiceTest.java
+            ├── MarkdownRendererServiceTest.java
+            └── SyntaxHighlighterTest.java
 ```
 
 ### Responsabilités des composants
@@ -179,7 +204,12 @@ SIOManager/
 - `ResourceType` distingue sections, matières, dossiers, Markdown, PDF et code.
 - `DemoResourceRepository` fournit temporairement une arborescence locale de démonstration.
 - `LocalFileService` lit et enregistre les fichiers texte en UTF-8.
+- `CodeExecutionService` compile et exécute Java ou lance Bash sans bloquer l'interface.
+- `SyntaxHighlighter` choisit les règles de coloration selon l'extension du fichier.
+- `MarkdownRendererService` transforme le Markdown en HTML et neutralise le HTML et les URL dangereuses.
+- `DemoContentInitializer` crée les PDF de démonstration manquants au premier lancement.
 - `DocumentSession` conserve l'état ouvert ou modifié d'un document.
+- `PdfDocumentView` charge, rend, pagine et zoome les documents PDF.
 - `ResourceTreeCell` personnalise l'affichage des éléments dans l'explorateur.
 - `ResourceDocumentFactory` crée la vue correspondant au type de fichier ouvert.
 - les fichiers FXML décrivent la disposition des fenêtres.
@@ -207,7 +237,7 @@ Ressources
 
 Chaque matière peut contenir autant de chapitres, sous-dossiers et fichiers que nécessaire. Cette structure récursive pourra ensuite être alimentée par une API sans modifier le fonctionnement général de l'interface.
 
-Les fichiers Markdown et les exemples de code sont actuellement chargés depuis `demo-content/`. Ce dossier fait partie du prototype : enregistrer un document depuis l'application modifie réellement le fichier correspondant dans ce dossier.
+Les fichiers Markdown, les exemples de code et les PDF sont actuellement chargés depuis `demo-content/`. Ce dossier fait partie du prototype : enregistrer un document depuis l'application modifie réellement le fichier correspondant dans ce dossier.
 
 ## État de la compilation
 
@@ -217,9 +247,9 @@ La commande suivante est utilisée pour valider le prototype :
 ./mvnw clean package
 ```
 
-La compilation est actuellement réussie avec Microsoft OpenJDK 25. Les avertissements relatifs aux accès natifs proviennent de l'utilisation de JavaFX 21 avec un JDK récent et ne bloquent pas l'exécution.
+La compilation et le lancement sont actuellement validés avec Microsoft OpenJDK 25. Maven active explicitement les accès natifs requis par JavaFX 26 et l'accès utilisé par PDFBox lors du lancement.
 
-Les quatre tests unitaires actuels passent avec JUnit 5 et Maven Surefire 3.6.0.
+Les onze tests automatisés actuels passent avec JUnit 5 et Maven Surefire 3.6.0.
 
 ## Convention de commits
 
