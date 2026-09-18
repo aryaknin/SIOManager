@@ -7,6 +7,7 @@
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
@@ -26,6 +27,8 @@
         <VBox>
             <MenuBar>
                 <Menu text="Fichier">
+                    <MenuItem accelerator="Shortcut+S" onAction="#saveSelectedDocument" text="Enregistrer"/>
+                    <SeparatorMenuItem/>
                     <MenuItem text="Quitter" onAction="#closeApplication"/>
                 </Menu>
                 <Menu text="Affichage"/>
@@ -37,6 +40,7 @@
                 <Separator orientation="VERTICAL"/>
                 <Label styleClass="toolbar-context" text="Espace de travail BTS SIO"/>
                 <Region HBox.hgrow="ALWAYS"/>
+                <Button onAction="#saveSelectedDocument" styleClass="toolbar-button" text="Enregistrer"/>
                 <Button onAction="#openSettings" styleClass="toolbar-button" text="⚙  Paramètres"/>
             </ToolBar>
         </VBox>

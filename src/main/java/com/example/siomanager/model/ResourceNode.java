@@ -2,11 +2,13 @@ package com.example.siomanager.model;
 
 import java.util.List;
 import java.util.Objects;
+import java.nio.file.Path;
 
 public record ResourceNode(
         String id,
         String name,
         ResourceType type,
+        Path localPath,
         List<ResourceNode> children
 ) {
     public ResourceNode {
@@ -17,6 +19,10 @@ public record ResourceNode(
 
         if (!type.isContainer() && !children.isEmpty()) {
             throw new IllegalArgumentException("Un fichier ne peut pas contenir de ressources");
+        }
+
+        if (type.isContainer() && localPath != null) {
+            throw new IllegalArgumentException("Un dossier logique ne doit pas pointer vers un fichier");
         }
     }
 

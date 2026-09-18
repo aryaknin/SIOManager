@@ -15,6 +15,10 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 - dossiers de chapitres et sous-dossiers ;
 - distinction entre fichiers Markdown, PDF et fichiers de code ;
 - ouverture des fichiers dans des onglets ;
+- lecture et modification de vrais fichiers texte locaux en UTF-8 ;
+- enregistrement depuis le menu, la barre d'outils ou avec `Ctrl+S` ;
+- indication `*` sur les onglets contenant des changements non enregistrés ;
+- confirmation avant la fermeture d'un document modifié ;
 - prévention de l'ouverture en double d'une même ressource ;
 - squelette d'éditeur Markdown avec modes `Édition` et `Aperçu` ;
 - éditeur texte provisoire pour Java, HTML, SQL et Bash ;
@@ -25,7 +29,6 @@ L'application vise les environnements Linux/Debian et Windows. Son interface s'i
 
 ## Fonctionnalités prévues
 
-- ouverture et enregistrement de vrais fichiers locaux ;
 - coloration syntaxique avec RichTextFX ;
 - rendu Markdown complet ;
 - lecteur PDF avec navigation et zoom ;
@@ -116,33 +119,56 @@ Sous Windows :
 
 Le fichier JAR généré est placé dans le dossier `target/`. Ce dossier contient uniquement des résultats de compilation et ne doit pas être modifié manuellement.
 
+## Exécuter les tests
+
+Sous Linux :
+
+```bash
+./mvnw test
+```
+
+Sous Windows :
+
+```powershell
+.\mvnw.cmd test
+```
+
+Les tests actuels vérifient la cohérence du modèle de ressources ainsi que la lecture, la création et l'enregistrement de fichiers UTF-8.
+
 ## Architecture actuelle
 
 ```text
 SIOManager/
+├── demo-content/                  ressources locales de démonstration
 ├── pom.xml
 ├── mvnw
 ├── mvnw.cmd
 └── src/
-    └── main/
-        ├── java/com/example/siomanager/
-        │   ├── Launcher.java
-        │   ├── MainApplication.java
-        │   ├── MainController.java
-        │   ├── SettingsController.java
-        │   ├── model/
-        │   │   ├── ResourceNode.java
-        │   │   └── ResourceType.java
-        │   ├── repository/
-        │   │   └── DemoResourceRepository.java
-        │   └── view/
-        │       ├── ResourceDocumentFactory.java
-        │       └── ResourceTreeCell.java
-        └── resources/com/example/siomanager/
-            ├── main-view.fxml
-            ├── settings-view.fxml
-            └── styles/
-                └── application.css
+    ├── main/
+    │   ├── java/com/example/siomanager/
+    │   │   ├── Launcher.java
+    │   │   ├── MainApplication.java
+    │   │   ├── MainController.java
+    │   │   ├── SettingsController.java
+    │   │   ├── model/
+    │   │   │   ├── ResourceNode.java
+    │   │   │   └── ResourceType.java
+    │   │   ├── repository/
+    │   │   │   └── DemoResourceRepository.java
+    │   │   ├── service/
+    │   │   │   └── LocalFileService.java
+    │   │   └── view/
+    │   │       ├── DocumentSession.java
+    │   │       ├── ResourceDocumentFactory.java
+    │   │       └── ResourceTreeCell.java
+    │   └── resources/com/example/siomanager/
+    │       ├── main-view.fxml
+    │       ├── settings-view.fxml
+    │       └── styles/
+    │           └── application.css
+    └── test/java/com/example/siomanager/
+        ├── model/ResourceNodeTest.java
+        └── service/LocalFileServiceTest.java
 ```
 
 ### Responsabilités des composants
@@ -152,6 +178,8 @@ SIOManager/
 - `ResourceNode` représente une ressource et ses éventuels enfants.
 - `ResourceType` distingue sections, matières, dossiers, Markdown, PDF et code.
 - `DemoResourceRepository` fournit temporairement une arborescence locale de démonstration.
+- `LocalFileService` lit et enregistre les fichiers texte en UTF-8.
+- `DocumentSession` conserve l'état ouvert ou modifié d'un document.
 - `ResourceTreeCell` personnalise l'affichage des éléments dans l'explorateur.
 - `ResourceDocumentFactory` crée la vue correspondant au type de fichier ouvert.
 - les fichiers FXML décrivent la disposition des fenêtres.
@@ -179,6 +207,8 @@ Ressources
 
 Chaque matière peut contenir autant de chapitres, sous-dossiers et fichiers que nécessaire. Cette structure récursive pourra ensuite être alimentée par une API sans modifier le fonctionnement général de l'interface.
 
+Les fichiers Markdown et les exemples de code sont actuellement chargés depuis `demo-content/`. Ce dossier fait partie du prototype : enregistrer un document depuis l'application modifie réellement le fichier correspondant dans ce dossier.
+
 ## État de la compilation
 
 La commande suivante est utilisée pour valider le prototype :
@@ -188,6 +218,8 @@ La commande suivante est utilisée pour valider le prototype :
 ```
 
 La compilation est actuellement réussie avec Microsoft OpenJDK 25. Les avertissements relatifs aux accès natifs proviennent de l'utilisation de JavaFX 21 avec un JDK récent et ne bloquent pas l'exécution.
+
+Les quatre tests unitaires actuels passent avec JUnit 5 et Maven Surefire 3.6.0.
 
 ## Convention de commits
 

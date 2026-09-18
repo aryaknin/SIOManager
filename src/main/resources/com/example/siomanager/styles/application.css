@@ -242,6 +242,18 @@
     -fx-text-fill: #f2f3f5;
 }
 
+.markdown-preview-scroll,
+.markdown-preview-scroll > .viewport {
+    -fx-background-color: #1e1f22;
+    -fx-border-color: transparent;
+}
+
+.markdown-preview-content {
+    -fx-font-size: 14px;
+    -fx-line-spacing: 4px;
+    -fx-text-fill: #dfe1e5;
+}
+
 .markdown-preview-subtitle {
     -fx-font-size: 16px;
     -fx-text-fill: #cfd1d6;
