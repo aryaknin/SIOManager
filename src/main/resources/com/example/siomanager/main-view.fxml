@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="800.0" prefWidth="1280.0" stylesheets="@styles/application.css"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.siomanager.MainController">
+    <top>
+        <VBox>
+            <MenuBar>
+                <Menu text="Fichier">
+                    <MenuItem text="Quitter" onAction="#closeApplication"/>
+                </Menu>
+                <Menu text="Affichage"/>
+                <Menu text="Exécuter"/>
+                <Menu text="Aide"/>
+            </MenuBar>
+            <ToolBar styleClass="main-toolbar">
+                <Label styleClass="application-title" text="SIOManager"/>
+                <Separator orientation="VERTICAL"/>
+                <Label styleClass="toolbar-context" text="Espace de travail BTS SIO"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button onAction="#openSettings" styleClass="toolbar-button" text="⚙  Paramètres"/>
+            </ToolBar>
+        </VBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.235">
+            <items>
+                <HBox minWidth="220.0" prefWidth="290.0" styleClass="sidebar-container">
+                    <VBox alignment="TOP_CENTER" prefWidth="48.0" spacing="8.0" styleClass="activity-bar">
+                        <padding>
+                            <Insets top="10.0"/>
+                        </padding>
+                        <Button styleClass="activity-button, activity-button-selected" text="▤"/>
+                        <Button styleClass="activity-button" text="⌕"/>
+                        <Region VBox.vgrow="ALWAYS"/>
+                        <Button onAction="#openSettings" styleClass="activity-button" text="⚙"/>
+                    </VBox>
+
+                    <VBox HBox.hgrow="ALWAYS" styleClass="resource-panel">
+                        <HBox alignment="CENTER_LEFT" styleClass="panel-header">
+                            <Label text="RESSOURCES"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Button onAction="#openSelectedResource" styleClass="icon-button" text="+"/>
+                        </HBox>
+                        <TreeView fx:id="resourceTree" VBox.vgrow="ALWAYS"/>
+                    </VBox>
+                </HBox>
+
+                <SplitPane dividerPositions="0.73" orientation="VERTICAL">
+                    <items>
+                        <TabPane fx:id="editorTabs" tabClosingPolicy="SELECTED_TAB">
+                            <tabs>
+                                <Tab closable="false" text="Bienvenue">
+                                    <content>
+                                        <StackPane styleClass="welcome-pane">
+                                            <VBox alignment="CENTER" maxWidth="520.0" spacing="12.0">
+                                                <Label styleClass="welcome-title" text="Bienvenue dans SIOManager"/>
+                                                <Label styleClass="welcome-subtitle" text="Parcours une matière, puis double-clique sur un fichier pour l’ouvrir." wrapText="true"/>
+                                            </VBox>
+                                        </StackPane>
+                                    </content>
+                                </Tab>
+                            </tabs>
+                        </TabPane>
+
+                        <TabPane styleClass="bottom-panel" tabClosingPolicy="UNAVAILABLE">
+                            <tabs>
+                                <Tab text="CONSOLE">
+                                    <content>
+                                        <BorderPane>
+                                            <top>
+                                                <HBox alignment="CENTER_RIGHT" styleClass="console-actions">
+                                                    <Button onAction="#clearConsole" styleClass="small-button" text="Effacer"/>
+                                                </HBox>
+                                            </top>
+                                            <center>
+                                                <TextArea fx:id="consoleArea" editable="false" styleClass="console-area" wrapText="true"/>
+                                            </center>
+                                        </BorderPane>
+                                    </content>
+                                </Tab>
+                                <Tab text="SORTIE"/>
+                                <Tab text="PROBLÈMES"/>
+                            </tabs>
+                        </TabPane>
+                    </items>
+                </SplitPane>
+            </items>
+        </SplitPane>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER_LEFT" spacing="14.0" styleClass="status-bar">
+            <Label text="● Prêt"/>
+            <Label fx:id="statusLabel" text="Aucun document ouvert"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Java 25"/>
+            <Label text="UTF-8"/>
+        </HBox>
+    </bottom>
+</BorderPane>
