@@ -10,3 +10,4 @@ record Student(String name, String specialty) {
         return name + " étudie en spécialité " + specialty + ".";
     }
 }
+
