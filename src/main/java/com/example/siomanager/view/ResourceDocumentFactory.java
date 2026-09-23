@@ -29,15 +29,19 @@ public final class ResourceDocumentFactory {
     }
 
     public DocumentSession create(ResourceNode resource) throws IOException {
+        return create(resource, true);
+    }
+
+    public DocumentSession create(ResourceNode resource, boolean editable) throws IOException {
         return switch (resource.type()) {
-            case MARKDOWN -> createMarkdownSession(resource);
+            case MARKDOWN -> createMarkdownSession(resource, editable);
             case PDF -> createPdfSession(resource);
-            case SOURCE_CODE -> createCodeSession(resource);
+            case SOURCE_CODE -> createCodeSession(resource, editable);
             default -> createReadOnlySession(resource, createUnsupportedView(resource));
         };
     }
 
-    private DocumentSession createMarkdownSession(ResourceNode resource) throws IOException {
+    private DocumentSession createMarkdownSession(ResourceNode resource, boolean editable) throws IOException {
         String initialContent = fileService.readText(resource);
         CodeArea editor = createEditor(resource, initialContent, "markdown-code-area");
 
@@ -89,20 +93,28 @@ public final class ResourceDocumentFactory {
         DocumentSession session = new DocumentSession(
                 resource,
                 document,
-                () -> fileService.saveText(resource, editor.getText())
+                editable ? () -> fileService.saveText(resource, editor.getText()) : null
         );
-        editor.textProperty().addListener((observable, previous, current) -> {
-            session.markModified();
-            applyHighlighting(editor, resource.name());
-        });
+        editor.setEditable(editable);
+        if (editable) {
+            editor.textProperty().addListener((observable, previous, current) -> {
+                session.markModified();
+                applyHighlighting(editor, resource.name());
+            });
+        } else {
+            editButton.setVisible(false);
+            editButton.setManaged(false);
+            previewButton.setSelected(true);
+        }
         return session;
     }
 
-    private DocumentSession createCodeSession(ResourceNode resource) throws IOException {
+    private DocumentSession createCodeSession(ResourceNode resource, boolean editable) throws IOException {
         String initialContent = fileService.readText(resource);
 
         Label filename = styledLabel(resource.name(), "document-filename");
-        HBox toolbar = new HBox(filename);
+        Label accessMode = styledLabel(editable ? "Modifiable" : "Lecture seule", "access-badge");
+        HBox toolbar = new HBox(10, filename, accessMode);
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.getStyleClass().add("document-toolbar");
 
@@ -116,12 +128,15 @@ public final class ResourceDocumentFactory {
         DocumentSession session = new DocumentSession(
                 resource,
                 document,
-                () -> fileService.saveText(resource, editor.getText())
+                editable ? () -> fileService.saveText(resource, editor.getText()) : null
         );
-        editor.textProperty().addListener((observable, previous, current) -> {
-            session.markModified();
-            applyHighlighting(editor, resource.name());
-        });
+        editor.setEditable(editable);
+        if (editable) {
+            editor.textProperty().addListener((observable, previous, current) -> {
+                session.markModified();
+                applyHighlighting(editor, resource.name());
+            });
+        }
         return session;
     }
 

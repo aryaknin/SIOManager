@@ -7,12 +7,15 @@
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.layout.BorderPane?>
@@ -28,7 +31,10 @@
         <VBox>
             <MenuBar>
                 <Menu text="Fichier">
-                    <MenuItem accelerator="Shortcut+N" onAction="#createResource" text="Nouvelle ressource…"/>
+                    <MenuItem fx:id="createResourceMenuItem" accelerator="Shortcut+N" onAction="#createResource" text="Nouvelle ressource…"/>
+                    <MenuItem fx:id="uploadResourceMenuItem" onAction="#uploadResource" text="Importer un fichier…"/>
+                    <MenuItem onAction="#importDirectory" text="Importer un dossier…"/>
+                    <MenuItem onAction="#downloadResource" text="Télécharger une copie…"/>
                     <MenuItem accelerator="F5" onAction="#refreshResources" text="Actualiser les ressources"/>
                     <SeparatorMenuItem/>
                     <MenuItem accelerator="Shortcut+S" onAction="#saveSelectedDocument" text="Enregistrer"/>
@@ -48,8 +54,11 @@
                     <MenuItem onAction="#resetLayout" text="Réinitialiser la disposition"/>
                 </Menu>
                 <Menu text="Exécuter">
-                    <MenuItem accelerator="F6" onAction="#runSelectedDocument" text="Exécuter le fichier"/>
+                    <MenuItem fx:id="runResourceMenuItem" accelerator="F6" onAction="#runSelectedDocument" text="Exécuter le fichier"/>
                     <MenuItem onAction="#stopExecution" text="Arrêter"/>
+                </Menu>
+                <Menu fx:id="administrationMenu" text="Administration">
+                    <MenuItem onAction="#openAdministration" text="Gérer les comptes…"/>
                 </Menu>
                 <Menu text="Aide"/>
             </MenuBar>
@@ -59,8 +68,17 @@
                 <Separator orientation="VERTICAL"/>
                 <Label styleClass="toolbar-context" text="Espace de travail BTS SIO"/>
                 <Region HBox.hgrow="ALWAYS"/>
+                <MenuButton fx:id="accountMenuButton" styleClass="account-menu" text="Utilisateur">
+                    <items>
+                        <MenuItem fx:id="accountRoleMenuItem" disable="true" text="Rôle"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#changeOwnPassword" text="Changer le mot de passe…"/>
+                        <MenuItem onAction="#logout" text="Changer de compte…"/>
+                    </items>
+                </MenuButton>
                 <Button onAction="#saveSelectedDocument" styleClass="toolbar-button" text="Enregistrer"/>
-                <Button onAction="#runSelectedDocument" styleClass="toolbar-button, run-button" text="▶  Exécuter"/>
+                <Button fx:id="runResourceButton" onAction="#runSelectedDocument" styleClass="toolbar-button, run-button" text="▶  Exécuter"/>
+                <Button fx:id="administrationButton" onAction="#openAdministration" styleClass="toolbar-button" text="Administration"/>
                 <Button onAction="#openSettings" styleClass="toolbar-icon-button" text="⚙"/>
             </ToolBar>
         </VBox>
@@ -85,8 +103,11 @@
                             <Label text="RESSOURCES"/>
                             <Region HBox.hgrow="ALWAYS"/>
                             <Button onAction="#refreshResources" styleClass="icon-button" text="↻"/>
-                            <Button onAction="#createResource" styleClass="icon-button" text="+"/>
+                            <Button onAction="#downloadResource" styleClass="icon-button" text="⇩"/>
+                            <Button fx:id="uploadResourceButton" onAction="#uploadResource" styleClass="icon-button" text="⇧"/>
+                            <Button fx:id="createResourceButton" onAction="#createResource" styleClass="icon-button" text="+"/>
                         </HBox>
+                        <TextField fx:id="searchField" promptText="Rechercher dans les cours et le code…" styleClass="resource-search"/>
                         <TreeView fx:id="resourceTree" VBox.vgrow="ALWAYS"/>
                     </VBox>
                 </HBox>
@@ -98,9 +119,20 @@
                                 <Tab closable="false" text="Bienvenue">
                                     <content>
                                         <StackPane styleClass="welcome-pane">
-                                            <VBox alignment="CENTER" maxWidth="520.0" spacing="12.0">
-                                                <Label styleClass="welcome-title" text="Bienvenue dans SIOManager"/>
-                                                <Label styleClass="welcome-subtitle" text="Parcours une matière, puis double-clique sur un fichier pour l’ouvrir." wrapText="true"/>
+                                            <VBox alignment="CENTER" maxWidth="820.0" spacing="14.0">
+                                                <Label fx:id="welcomeUserLabel" styleClass="welcome-title" text="Bienvenue dans SIOManager"/>
+                                                <Label fx:id="dashboardProgressLabel" styleClass="welcome-subtitle" text="Aucune ressource terminée"/>
+                                                <HBox maxWidth="820.0" spacing="14.0">
+                                                    <VBox spacing="7.0" styleClass="dashboard-card" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="card-title" text="★ Favoris"/>
+                                                        <ListView fx:id="favoriteList" prefHeight="190.0"/>
+                                                    </VBox>
+                                                    <VBox spacing="7.0" styleClass="dashboard-card" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="card-title" text="Récemment ouverts"/>
+                                                        <ListView fx:id="recentList" prefHeight="190.0"/>
+                                                    </VBox>
+                                                </HBox>
+                                                <Label styleClass="welcome-subtitle" text="Double-clique sur une ressource pour l’ouvrir. Utilise le clic droit pour les favoris et la progression." wrapText="true"/>
                                             </VBox>
                                         </StackPane>
                                     </content>

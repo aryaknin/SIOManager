@@ -2,15 +2,24 @@ package com.example.siomanager;
 
 import com.example.siomanager.model.ResourceNode;
 import com.example.siomanager.model.ResourceType;
+import com.example.siomanager.model.UserAccount;
+import com.example.siomanager.model.ResourceMetadata;
 import com.example.siomanager.repository.LocalResourceRepository;
+import com.example.siomanager.repository.PersonalWorkspaceRepository;
+import com.example.siomanager.service.AccountService;
+import com.example.siomanager.service.BackupService;
 import com.example.siomanager.service.CodeExecutionService;
 import com.example.siomanager.service.DemoContentInitializer;
 import com.example.siomanager.service.LocalFileService;
 import com.example.siomanager.service.ResourceCreationService;
+import com.example.siomanager.service.ResourceManagementService;
+import com.example.siomanager.service.ResourceCatalogService;
+import com.example.siomanager.service.TrashService;
 import com.example.siomanager.view.DocumentSession;
 import com.example.siomanager.view.ResourceCreationDialog;
 import com.example.siomanager.view.ResourceDocumentFactory;
 import com.example.siomanager.view.ResourceTreeCell;
+import com.example.siomanager.view.PasswordChangeDialog;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -18,16 +27,23 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.geometry.Rectangle2D;
@@ -38,14 +54,18 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
+import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.prefs.Preferences;
@@ -61,11 +81,21 @@ public class MainController {
     private final DemoContentInitializer demoContentInitializer = new DemoContentInitializer();
     private final CodeExecutionService executionService = new CodeExecutionService();
     private final ResourceCreationService resourceCreationService = new ResourceCreationService();
+    private final ResourceManagementService resourceManagementService = new ResourceManagementService();
     private final ResourceDocumentFactory documentFactory =
             new ResourceDocumentFactory(new LocalFileService());
     private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
 
     private Stage stage;
+    private AccountService accountService;
+    private ResourceCatalogService catalogService;
+    private TrashService trashService;
+    private BackupService backupService;
+    private UserAccount currentUser;
+    private PersonalWorkspaceRepository personalWorkspaceRepository;
+    private MenuItem contextCreateItem;
+    private Runnable logoutHandler;
+    private ResourceNode completeResourceTree;
     private double uiFontSize;
     private double explorerDividerPosition;
     private double bottomDividerPosition;
@@ -113,6 +143,51 @@ public class MainController {
     private Label zoomLabel;
 
     @FXML
+    private MenuButton accountMenuButton;
+
+    @FXML
+    private MenuItem accountRoleMenuItem;
+
+    @FXML
+    private Button createResourceButton;
+
+    @FXML
+    private Button uploadResourceButton;
+
+    @FXML
+    private Button runResourceButton;
+
+    @FXML
+    private Button administrationButton;
+
+    @FXML
+    private MenuItem createResourceMenuItem;
+
+    @FXML
+    private MenuItem uploadResourceMenuItem;
+
+    @FXML
+    private MenuItem runResourceMenuItem;
+
+    @FXML
+    private Menu administrationMenu;
+
+    @FXML
+    private TextField searchField;
+
+    @FXML
+    private ListView<ResourceNode> favoriteList;
+
+    @FXML
+    private ListView<ResourceNode> recentList;
+
+    @FXML
+    private Label welcomeUserLabel;
+
+    @FXML
+    private Label dashboardProgressLabel;
+
+    @FXML
     private void initialize() {
         uiFontSize = clamp(
                 preferences.getDouble("ui.fontSize", DEFAULT_UI_FONT_SIZE),
@@ -141,6 +216,10 @@ public class MainController {
         resourceTree.setCellFactory(tree -> new ResourceTreeCell());
         configureResourceContextMenu();
         reloadResourceTree(null);
+
+        searchField.textProperty().addListener((observable, previous, current) -> applyResourceFilter());
+        configureDashboardList(favoriteList);
+        configureDashboardList(recentList);
 
         resourceTree.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> {
             if (selected != null) {
@@ -176,6 +255,45 @@ public class MainController {
         stage.setHeight(clamp(savedHeight, stage.getMinHeight(), visualBounds.getHeight()));
         stage.setMaximized(preferences.getBoolean("window.maximized", false));
         stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::handleGlobalShortcut);
+    }
+
+    public void configureSecurity(
+            AccountService accountService,
+            ResourceCatalogService catalogService,
+            TrashService trashService,
+            BackupService backupService,
+            UserAccount currentUser,
+            Path personalWorkspacePath,
+            Runnable logoutHandler
+    ) {
+        this.accountService = accountService;
+        this.catalogService = catalogService;
+        this.trashService = trashService;
+        this.backupService = backupService;
+        this.currentUser = currentUser;
+        this.personalWorkspaceRepository = new PersonalWorkspaceRepository(personalWorkspacePath);
+        this.logoutHandler = logoutHandler;
+        boolean administrator = currentUser.isAdmin();
+
+        accountMenuButton.setText(currentUser.displayName());
+        accountRoleMenuItem.setText(currentUser.username() + " • " + currentUser.role().displayName());
+        welcomeUserLabel.setText("Bonjour " + currentUser.displayName());
+        setManagedVisible(createResourceButton, true);
+        setManagedVisible(uploadResourceButton, true);
+        setManagedVisible(runResourceButton, true);
+        setManagedVisible(administrationButton, administrator);
+        createResourceMenuItem.setVisible(true);
+        uploadResourceMenuItem.setVisible(true);
+        runResourceMenuItem.setVisible(true);
+        administrationMenu.setVisible(administrator);
+        if (contextCreateItem != null) {
+            contextCreateItem.setVisible(true);
+        }
+        reloadResourceTree(null);
+        writeConsole("Session ouverte : " + currentUser.displayName() + " (" + currentUser.role().displayName() + ").");
+        if (!administrator) {
+            writeConsole("Les ressources communes sont en lecture seule pour les comptes élèves.");
+        }
     }
 
     @FXML
@@ -243,13 +361,19 @@ public class MainController {
         TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
         TreeItem<ResourceNode> destination = selected;
         if (destination == null) {
-            destination = resourceTree.getRoot();
+            destination = currentUser != null && !currentUser.isAdmin()
+                    ? findTreeItem(resourceTree.getRoot(), "personal")
+                    : resourceTree.getRoot();
         } else if (!destination.getValue().isContainer()) {
             destination = destination.getParent();
         }
 
         ResourceNode destinationResource = destination.getValue();
-        Path destinationPath = resourceRepository.pathFor(destinationResource);
+        if (!canModify(destinationResource)) {
+            writeConsole("Accès refusé : les ressources communes sont en lecture seule pour les élèves.");
+            return;
+        }
+        Path destinationPath = pathFor(destinationResource);
         Optional<ResourceCreationService.CreationRequest> request = ResourceCreationDialog.show(
                 editorTabs.getScene().getWindow(),
                 destinationResource.name()
@@ -260,12 +384,13 @@ public class MainController {
 
         try {
             Path created = resourceCreationService.create(
-                    resourceRepository.contentRoot(),
+                    rootFor(destinationResource),
                     destinationPath,
                     request.get().name(),
                     request.get().kind()
             );
-            reloadResourceTree(resourceRepository.idFor(created));
+            String createdId = idFor(created, destinationResource);
+            reloadResourceTree(createdId);
             TreeItem<ResourceNode> createdItem = resourceTree.getSelectionModel().getSelectedItem();
             if (createdItem != null) {
                 if (createdItem.getValue().isContainer()) {
@@ -276,9 +401,203 @@ public class MainController {
             }
             statusLabel.setText("Créé • " + created.getFileName());
             writeConsole("Création : " + created);
+            recordResourceAction("RESOURCE_CREATED", createdId);
         } catch (IOException | IllegalArgumentException exception) {
             showError("Impossible de créer la ressource", exception.getMessage());
             writeConsole("Erreur de création : " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void uploadResource() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        TreeItem<ResourceNode> destination = selected == null
+                ? (currentUser != null && !currentUser.isAdmin()
+                    ? findTreeItem(resourceTree.getRoot(), "personal")
+                    : resourceTree.getRoot())
+                : selected;
+        if (!destination.getValue().isContainer()) {
+            destination = destination.getParent();
+        }
+        ResourceNode destinationResource = destination.getValue();
+        if (!canModify(destinationResource)) {
+            writeConsole("Accès refusé : l’import dans les ressources communes est réservé aux administrateurs.");
+            return;
+        }
+        Path destinationPath = pathFor(destinationResource);
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Importer une ressource dans « " + destination.getValue().name() + " »");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Ressources prises en charge", "*.md", "*.pdf", "*.java", "*.html", "*.css", "*.js", "*.sql", "*.sh", "*.py", "*.txt"),
+                new FileChooser.ExtensionFilter("Tous les fichiers", "*.*")
+        );
+        java.io.File selectedFile = chooser.showOpenDialog(editorTabs.getScene().getWindow());
+        if (selectedFile == null) {
+            return;
+        }
+
+        Path source = selectedFile.toPath().toAbsolutePath().normalize();
+        Path target = destinationPath.resolve(source.getFileName()).normalize();
+        if (!target.startsWith(rootFor(destinationResource))) {
+            showError("Import refusé", "Le fichier sortirait du dossier de ressources autorisé.");
+            return;
+        }
+        if (Files.exists(target)) {
+            showError("Import impossible", "Un fichier nommé « " + source.getFileName() + " » existe déjà dans ce dossier.");
+            return;
+        }
+
+        try {
+            Files.copy(source, target);
+            String id = idFor(target, destinationResource);
+            reloadResourceTree(id);
+            recordResourceAction("RESOURCE_UPLOADED", id);
+            statusLabel.setText("Importé • " + source.getFileName());
+            writeConsole("Import : " + target);
+        } catch (IOException | IllegalStateException exception) {
+            showError("Impossible d’importer la ressource", exception.getMessage());
+            writeConsole("Erreur d’import : " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void importDirectory() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        TreeItem<ResourceNode> destination = selected == null
+                ? (currentUser != null && !currentUser.isAdmin()
+                    ? findTreeItem(resourceTree.getRoot(), "personal")
+                    : resourceTree.getRoot())
+                : selected;
+        if (!destination.getValue().isContainer()) {
+            destination = destination.getParent();
+        }
+        ResourceNode destinationResource = destination.getValue();
+        if (!canModify(destinationResource)) {
+            writeConsole("Accès refusé : ce dossier est en lecture seule.");
+            return;
+        }
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Importer un dossier dans « " + destinationResource.name() + " »");
+        java.io.File selectedDirectory = chooser.showDialog(editorTabs.getScene().getWindow());
+        if (selectedDirectory == null) {
+            return;
+        }
+        try {
+            Path imported = resourceManagementService.importDirectory(
+                    rootFor(destinationResource),
+                    pathFor(destinationResource),
+                    selectedDirectory.toPath()
+            );
+            String id = idFor(imported, destinationResource);
+            reloadResourceTree(id);
+            recordResourceAction("DIRECTORY_IMPORTED", id);
+            statusLabel.setText("Dossier importé • " + imported.getFileName());
+        } catch (IOException | IllegalArgumentException exception) {
+            showError("Import du dossier impossible", exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void downloadResource() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.getValue().isContainer()) {
+            writeConsole("Sélectionne un fichier à télécharger.");
+            return;
+        }
+        ResourceNode resource = selected.getValue();
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Télécharger une copie de « " + resource.name() + " »");
+        chooser.setInitialFileName(resource.localPath().getFileName().toString());
+        java.io.File targetFile = chooser.showSaveDialog(editorTabs.getScene().getWindow());
+        if (targetFile == null) {
+            return;
+        }
+        try {
+            Files.copy(resource.localPath(), targetFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            recordResourceAction("RESOURCE_DOWNLOADED", resource.id());
+            statusLabel.setText("Copie enregistrée • " + targetFile.getName());
+            writeConsole("Téléchargement : " + targetFile);
+        } catch (IOException | IllegalStateException exception) {
+            showError("Téléchargement impossible", exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void renameSelectedResource() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        if (selected == null || isProtectedRoot(selected.getValue())) {
+            writeConsole("Cette racine ne peut pas être renommée.");
+            return;
+        }
+        ResourceNode resource = selected.getValue();
+        if (!canModify(resource)) {
+            writeConsole("Accès refusé : cette ressource est en lecture seule.");
+            return;
+        }
+        Path source = pathFor(resource);
+        if (isOpen(source)) {
+            showError("Renommage impossible", "Ferme d’abord les documents ouverts contenus dans cette ressource.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(source.getFileName().toString());
+        dialog.initOwner(editorTabs.getScene().getWindow());
+        dialog.setTitle("Renommer — SIOManager");
+        dialog.setHeaderText("Renommer « " + resource.name() + " »");
+        dialog.setContentText("Nouveau nom :");
+        Optional<String> newName = dialog.showAndWait();
+        if (newName.isEmpty()) {
+            return;
+        }
+        try {
+            Path renamed = resourceManagementService.rename(rootFor(resource), source, newName.get());
+            String id = idFor(renamed, resource);
+            reloadResourceTree(id);
+            recordResourceAction("RESOURCE_RENAMED", resource.id() + " -> " + id);
+            statusLabel.setText("Renommé • " + renamed.getFileName());
+        } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+            showError("Renommage impossible", exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void deleteSelectedResource() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        if (selected == null || isProtectedRoot(selected.getValue())) {
+            writeConsole("Cette racine ne peut pas être supprimée.");
+            return;
+        }
+        ResourceNode resource = selected.getValue();
+        if (!canModify(resource)) {
+            writeConsole("Accès refusé : cette ressource est en lecture seule.");
+            return;
+        }
+        Path target = pathFor(resource);
+        if (isOpen(target)) {
+            showError("Suppression impossible", "Ferme d’abord les documents ouverts contenus dans cette ressource.");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.initOwner(editorTabs.getScene().getWindow());
+        confirmation.setTitle("Mettre à la corbeille — SIOManager");
+        confirmation.setHeaderText("Déplacer « " + resource.name() + " » dans la corbeille ?");
+        confirmation.setContentText(resource.isContainer()
+                ? "Le dossier et tout son contenu pourront être restaurés par un administrateur."
+                : "Le fichier pourra être restauré par un administrateur.");
+        Optional<ButtonType> result = confirmation.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        try {
+            trashService.moveToTrash(currentUser, resource, target);
+            reloadResourceTree(null);
+            recordResourceAction("RESOURCE_TRASHED", resource.id());
+            statusLabel.setText("Déplacé dans la corbeille • " + resource.name());
+        } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+            showError("Suppression impossible", exception.getMessage());
         }
     }
 
@@ -304,7 +623,7 @@ public class MainController {
         }
 
         try {
-            DocumentSession session = documentFactory.create(resource);
+            DocumentSession session = documentFactory.create(resource, canModify(resource));
             Tab tab = new Tab(resource.name(), session.content());
             tab.setUserData(session);
             tab.setOnCloseRequest(event -> {
@@ -324,6 +643,7 @@ public class MainController {
 
             statusLabel.setText(resource.type().name() + " • " + resource.name());
             writeConsole("Ouverture : " + resource.localPath());
+            recordOpened(resource);
         } catch (IOException exception) {
             showError(
                     "Impossible d’ouvrir la ressource",
@@ -370,6 +690,10 @@ public class MainController {
             writeConsole("La ressource sélectionnée n’est pas un fichier de code exécutable.");
             return;
         }
+        if (!canModify(session.resource())) {
+            writeConsole("Les élèves peuvent exécuter uniquement les fichiers de leur espace personnel.");
+            return;
+        }
         if (session.isModified() && !saveSession(session)) {
             return;
         }
@@ -414,6 +738,8 @@ public class MainController {
             FXMLLoader loader = new FXMLLoader(MainApplication.class.getResource("settings-view.fxml"));
             Parent root = loader.load();
             root.setStyle("-fx-font-size: " + uiFontSize + "px;");
+            SettingsController controller = loader.getController();
+            controller.configure(backupService, accountService, currentUser, this::logoutAfterRestore);
 
             Stage settingsStage = new Stage();
             Window owner = editorTabs.getScene().getWindow();
@@ -425,6 +751,58 @@ public class MainController {
             settingsStage.showAndWait();
         } catch (IOException exception) {
             writeConsole("Impossible d’ouvrir les paramètres : " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void changeOwnPassword() {
+        PasswordChangeDialog.show(
+                editorTabs.getScene().getWindow(),
+                accountService,
+                currentUser
+        ).ifPresent(updated -> {
+            currentUser = updated;
+            accountMenuButton.setText(updated.displayName());
+            statusLabel.setText("Mot de passe modifié");
+        });
+    }
+
+    @FXML
+    private void logout() {
+        if (!confirmCloseAll()) {
+            return;
+        }
+        dispose();
+        logoutHandler.run();
+    }
+
+    private void logoutAfterRestore() {
+        dispose();
+        logoutHandler.run();
+    }
+
+    @FXML
+    private void openAdministration() {
+        if (!requireAdministrator("ouvrir l’administration")) {
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(MainApplication.class.getResource("admin-view.fxml"));
+            Parent root = loader.load();
+            root.setStyle("-fx-font-size: " + uiFontSize + "px;");
+            AdminController controller = loader.getController();
+            controller.configure(accountService, catalogService, trashService, currentUser, this::reloadAfterAdmin);
+
+            Stage adminStage = new Stage();
+            adminStage.initOwner(editorTabs.getScene().getWindow());
+            adminStage.initModality(Modality.WINDOW_MODAL);
+            adminStage.setTitle("Administration — SIOManager");
+            adminStage.setMinWidth(820);
+            adminStage.setMinHeight(540);
+            adminStage.setScene(new Scene(root));
+            adminStage.showAndWait();
+        } catch (IOException | IllegalStateException | SecurityException exception) {
+            showError("Administration indisponible", exception.getMessage());
         }
     }
 
@@ -514,11 +892,25 @@ public class MainController {
     }
 
     private void configureResourceContextMenu() {
-        MenuItem createItem = new MenuItem("Nouvelle ressource…");
-        createItem.setOnAction(event -> createResource());
+        contextCreateItem = new MenuItem("Nouvelle ressource…");
+        contextCreateItem.setOnAction(event -> createResource());
+        MenuItem renameItem = new MenuItem("Renommer…");
+        renameItem.setOnAction(event -> renameSelectedResource());
+        MenuItem deleteItem = new MenuItem("Supprimer…");
+        deleteItem.setOnAction(event -> deleteSelectedResource());
+        MenuItem downloadItem = new MenuItem("Télécharger une copie…");
+        downloadItem.setOnAction(event -> downloadResource());
+        MenuItem favoriteItem = new MenuItem("Ajouter/retirer des favoris");
+        favoriteItem.setOnAction(event -> toggleSelectedFavorite());
+        MenuItem completeItem = new MenuItem("Marquer comme terminé");
+        completeItem.setOnAction(event -> markSelectedComplete());
+        MenuItem importDirectoryItem = new MenuItem("Importer un dossier…");
+        importDirectoryItem.setOnAction(event -> importDirectory());
         MenuItem refreshItem = new MenuItem("Actualiser");
         refreshItem.setOnAction(event -> refreshResources());
-        resourceTree.setContextMenu(new ContextMenu(createItem, refreshItem));
+        resourceTree.setContextMenu(new ContextMenu(
+                contextCreateItem, importDirectoryItem, renameItem, deleteItem,
+                downloadItem, favoriteItem, completeItem, refreshItem));
     }
 
     private void reloadResourceTree(String selectedId) {
@@ -526,7 +918,35 @@ public class MainController {
         collectExpandedIds(resourceTree.getRoot(), expandedIds);
 
         try {
-            TreeItem<ResourceNode> root = toTreeItem(resourceRepository.loadTree());
+            ResourceNode sharedRoot = resourceRepository.loadTree();
+            List<ResourceNode> rootChildren = new ArrayList<>(sharedRoot.children());
+            ResourceNode personalRoot = null;
+            if (personalWorkspaceRepository != null) {
+                personalRoot = personalWorkspaceRepository.loadTree();
+                rootChildren.add(personalRoot);
+            }
+            completeResourceTree = new ResourceNode(
+                    "root", "Ressources", ResourceType.ROOT, null, rootChildren);
+
+            if (catalogService != null && currentUser != null) {
+                catalogService.indexShared(sharedRoot, resourceRepository.contentRoot());
+                if (personalRoot != null) {
+                    catalogService.indexPersonal(
+                            personalRoot,
+                            personalWorkspaceRepository.workspaceRoot(),
+                            currentUser.username()
+                    );
+                }
+            }
+            renderResourceTree(completeResourceTree, selectedId, expandedIds);
+            refreshDashboard();
+        } catch (IOException | IllegalStateException exception) {
+            writeConsole("Impossible d’actualiser les ressources : " + exception.getMessage());
+        }
+    }
+
+    private void renderResourceTree(ResourceNode model, String selectedId, Set<String> expandedIds) {
+            TreeItem<ResourceNode> root = toTreeItem(model);
             root.setExpanded(true);
             if (expandedIds.isEmpty()) {
                 root.getChildren().forEach(section -> section.setExpanded(true));
@@ -543,9 +963,166 @@ public class MainController {
                     resourceTree.scrollTo(resourceTree.getRow(selected));
                 }
             }
-        } catch (IOException exception) {
-            writeConsole("Impossible d’actualiser les ressources : " + exception.getMessage());
+    }
+
+    private void applyResourceFilter() {
+        if (completeResourceTree == null || catalogService == null || currentUser == null) {
+            return;
         }
+        String query = searchField.getText() == null ? "" : searchField.getText().trim();
+        if (query.isEmpty()) {
+            renderResourceTree(completeResourceTree, null, Set.of("root"));
+            return;
+        }
+        Set<String> matchingIds = new HashSet<>();
+        for (ResourceMetadata metadata : catalogService.search(currentUser, query)) {
+            matchingIds.add(metadata.resourceId());
+        }
+        ResourceNode filtered = filterTree(completeResourceTree, matchingIds, query.toLowerCase())
+                .orElse(new ResourceNode("root", "Ressources", ResourceType.ROOT, null, List.of()));
+        renderResourceTree(filtered, null, Set.of());
+        expandAll(resourceTree.getRoot());
+        statusLabel.setText(matchingIds.size() + " résultat(s) pour « " + query + " »");
+    }
+
+    private Optional<ResourceNode> filterTree(ResourceNode node, Set<String> matchingIds, String query) {
+        if (!node.isContainer()) {
+            return matchingIds.contains(node.id()) || node.name().toLowerCase().contains(query)
+                    ? Optional.of(node)
+                    : Optional.empty();
+        }
+        if (node.name().toLowerCase().contains(query) && node.type() != ResourceType.ROOT) {
+            return Optional.of(node);
+        }
+        List<ResourceNode> children = node.children().stream()
+                .map(child -> filterTree(child, matchingIds, query))
+                .flatMap(Optional::stream)
+                .toList();
+        return !children.isEmpty() || node.type() == ResourceType.ROOT
+                ? Optional.of(new ResourceNode(node.id(), node.name(), node.type(), node.localPath(), children))
+                : Optional.empty();
+    }
+
+    private void expandAll(TreeItem<ResourceNode> item) {
+        if (item == null) {
+            return;
+        }
+        item.setExpanded(true);
+        item.getChildren().forEach(this::expandAll);
+    }
+
+    @FXML
+    private void toggleSelectedFavorite() {
+        ResourceNode resource = selectedFile();
+        if (resource == null) {
+            return;
+        }
+        try {
+            boolean favorite = catalogService.toggleFavorite(currentUser, resource);
+            statusLabel.setText(favorite ? "Ajouté aux favoris" : "Retiré des favoris");
+            refreshDashboard();
+        } catch (IllegalStateException exception) {
+            showError("Favoris indisponibles", exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void markSelectedComplete() {
+        ResourceNode resource = selectedFile();
+        if (resource == null) {
+            return;
+        }
+        try {
+            catalogService.markComplete(currentUser, resource);
+            statusLabel.setText("Terminé • " + resource.name());
+            refreshDashboard();
+        } catch (IllegalStateException exception) {
+            showError("Progression indisponible", exception.getMessage());
+        }
+    }
+
+    private ResourceNode selectedFile() {
+        TreeItem<ResourceNode> selected = resourceTree.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.getValue().isContainer()) {
+            writeConsole("Sélectionne d’abord un fichier.");
+            return null;
+        }
+        return selected.getValue();
+    }
+
+    private void recordOpened(ResourceNode resource) {
+        try {
+            catalogService.recordOpened(currentUser, resource);
+            refreshDashboard();
+        } catch (IllegalStateException exception) {
+            writeConsole("Historique indisponible : " + exception.getMessage());
+        }
+    }
+
+    private void refreshDashboard() {
+        if (catalogService == null || currentUser == null || completeResourceTree == null) {
+            return;
+        }
+        try {
+            ResourceCatalogService.DashboardData dashboard = catalogService.dashboard(currentUser);
+            favoriteList.getItems().setAll(resolveResources(dashboard.favorites()));
+            recentList.getItems().setAll(resolveResources(dashboard.recent()));
+            dashboardProgressLabel.setText(dashboard.completedCount() + " ressource(s) terminée(s)");
+        } catch (IllegalStateException exception) {
+            writeConsole("Tableau de bord indisponible : " + exception.getMessage());
+        }
+    }
+
+    private List<ResourceNode> resolveResources(List<ResourceMetadata> metadata) {
+        List<ResourceNode> resources = new ArrayList<>();
+        for (ResourceMetadata item : metadata) {
+            ResourceNode resource = findResourceNode(completeResourceTree, item.resourceId());
+            if (resource != null) {
+                resources.add(resource);
+            }
+        }
+        return resources;
+    }
+
+    private ResourceNode findResourceNode(ResourceNode node, String id) {
+        if (node.id().equals(id)) {
+            return node;
+        }
+        for (ResourceNode child : node.children()) {
+            ResourceNode found = findResourceNode(child, id);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private void configureDashboardList(ListView<ResourceNode> list) {
+        list.setCellFactory(view -> new ListCell<>() {
+            @Override
+            protected void updateItem(ResourceNode item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.type().symbol() + "  " + item.name());
+            }
+        });
+        list.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && list.getSelectionModel().getSelectedItem() != null) {
+                ResourceNode resource = list.getSelectionModel().getSelectedItem();
+                TreeItem<ResourceNode> item = findTreeItem(resourceTree.getRoot(), resource.id());
+                if (item == null) {
+                    searchField.clear();
+                    item = findTreeItem(resourceTree.getRoot(), resource.id());
+                }
+                if (item != null) {
+                    resourceTree.getSelectionModel().select(item);
+                    openSelectedResource();
+                }
+            }
+        });
+    }
+
+    private void reloadAfterAdmin() {
+        reloadResourceTree(null);
     }
 
     private void collectExpandedIds(TreeItem<ResourceNode> item, Set<String> expandedIds) {
@@ -711,5 +1288,75 @@ public class MainController {
 
     private double clamp(double value, double minimum, double maximum) {
         return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    private boolean requireAdministrator(String action) {
+        if (currentUser != null && currentUser.isAdmin()) {
+            return true;
+        }
+        writeConsole("Accès refusé : seuls les administrateurs peuvent " + action + ".");
+        return false;
+    }
+
+    private void setManagedVisible(Node node, boolean visible) {
+        node.setVisible(visible);
+        node.setManaged(visible);
+    }
+
+    private boolean isPersonal(ResourceNode resource) {
+        return resource != null && (resource.id().equals("personal") || resource.id().startsWith("personal/"));
+    }
+
+    private boolean canModify(ResourceNode resource) {
+        return currentUser != null && (currentUser.isAdmin() || isPersonal(resource));
+    }
+
+    private Path pathFor(ResourceNode resource) {
+        if (isPersonal(resource)) {
+            if (resource.localPath() == null) {
+                throw new IllegalArgumentException("Le chemin de l’espace personnel est introuvable.");
+            }
+            return resource.localPath().toAbsolutePath().normalize();
+        }
+        return resourceRepository.pathFor(resource);
+    }
+
+    private Path rootFor(ResourceNode resource) {
+        return isPersonal(resource)
+                ? personalWorkspaceRepository.workspaceRoot()
+                : resourceRepository.contentRoot();
+    }
+
+    private String idFor(Path path, ResourceNode destination) {
+        return isPersonal(destination)
+                ? personalWorkspaceRepository.idFor(path)
+                : resourceRepository.idFor(path);
+    }
+
+    private boolean isProtectedRoot(ResourceNode resource) {
+        if (resource == null || resource.type() == ResourceType.ROOT || resource.id().equals("personal")) {
+            return true;
+        }
+        return !isPersonal(resource) && Set.of("common", "sisr", "slam").contains(resource.id());
+    }
+
+    private boolean isOpen(Path target) {
+        Path normalized = target.toAbsolutePath().normalize();
+        for (Tab tab : editorTabs.getTabs()) {
+            if (tab.getUserData() instanceof DocumentSession session
+                    && session.resource().localPath() != null
+                    && session.resource().localPath().toAbsolutePath().normalize().startsWith(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void recordResourceAction(String action, String details) {
+        try {
+            accountService.recordUserAction(currentUser, action, details);
+        } catch (IllegalStateException exception) {
+            writeConsole("Journal d’audit indisponible : " + exception.getMessage());
+        }
     }
 }

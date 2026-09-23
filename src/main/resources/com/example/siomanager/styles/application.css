@@ -104,6 +104,135 @@
     -fx-background-color: #336348;
 }
 
+.user-badge,
+.access-badge {
+    -fx-background-color: #2b2e35;
+    -fx-background-radius: 10;
+    -fx-border-color: #41454f;
+    -fx-border-radius: 10;
+    -fx-padding: 3 8;
+    -fx-text-fill: #b9c7df;
+    -fx-font-size: 0.88em;
+}
+
+.account-menu {
+    -fx-background-color: #2b2e35;
+    -fx-background-radius: 10;
+    -fx-border-color: #41454f;
+    -fx-border-radius: 10;
+    -fx-padding: 0 3;
+}
+
+.resource-search {
+    -fx-background-color: #292b31;
+    -fx-border-color: #383b44;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-text-fill: #e1e4e9;
+    -fx-prompt-text-fill: #7f8490;
+    -fx-padding: 6 8;
+    -fx-margin: 4 7;
+}
+
+.dashboard-card {
+    -fx-background-color: #22242a;
+    -fx-background-radius: 8;
+    -fx-border-color: #383b44;
+    -fx-border-radius: 8;
+    -fx-padding: 12;
+    -fx-min-width: 300;
+}
+
+.dashboard-card .list-view,
+.dashboard-card .list-cell {
+    -fx-background-color: transparent;
+}
+
+.dashboard-card .list-cell:hover {
+    -fx-background-color: #2e3138;
+}
+
+.auth-dialog,
+.auth-dialog > .content,
+.admin-root {
+    -fx-background-color: #1b1c20;
+}
+
+.auth-dialog .text-field,
+.admin-root .text-field,
+.admin-root .combo-box {
+    -fx-background-color: #24262c;
+    -fx-border-color: #41454f;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-text-fill: #eceef2;
+    -fx-prompt-text-fill: #777c87;
+    -fx-padding: 6 8;
+}
+
+.auth-title,
+.admin-title {
+    -fx-font-size: 1.6em;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f2f4f8;
+}
+
+.form-error,
+.form-feedback {
+    -fx-text-fill: #f08a92;
+}
+
+.admin-header {
+    -fx-background-color: #202228;
+    -fx-border-color: transparent transparent #343740 transparent;
+}
+
+.section-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #b9bdc7;
+}
+
+.admin-card {
+    -fx-background-color: #22242a;
+    -fx-background-radius: 7;
+    -fx-border-color: #383b44;
+    -fx-border-radius: 7;
+    -fx-padding: 14;
+}
+
+.card-title {
+    -fx-font-size: 1.1em;
+    -fx-font-weight: bold;
+    -fx-text-fill: #eef0f4;
+}
+
+.table-view {
+    -fx-background-color: #202228;
+    -fx-border-color: #383b44;
+}
+
+.table-view .column-header-background,
+.table-view .column-header {
+    -fx-background-color: #292c33;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #c7cad1;
+}
+
+.table-row-cell {
+    -fx-background-color: #202228;
+    -fx-text-background-color: #d8dbe1;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #24262c;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #264f78;
+}
+
 .sidebar-container,
 .resource-panel {
     -fx-background-color: #202126;

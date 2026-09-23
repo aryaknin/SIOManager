@@ -37,3 +37,9 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### SIOManager local data ###
+.siomanager/
+siomanager.db
+siomanager.db-shm
+siomanager.db-wal

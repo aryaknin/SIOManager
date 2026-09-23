@@ -47,6 +47,15 @@
             <ComboBox promptText="Sombre" prefWidth="220.0"/>
             <CheckBox selected="true" text="Rouvrir les documents au démarrage"/>
             <CheckBox selected="true" text="Afficher la console"/>
+            <VBox fx:id="backupSection" spacing="10.0" styleClass="admin-card">
+                <Label styleClass="card-title" text="Sauvegardes locales"/>
+                <Label styleClass="muted-label" text="Exporte la base, les ressources communes et les espaces personnels dans une archive ZIP." wrapText="true"/>
+                <HBox spacing="8.0">
+                    <Button onAction="#createBackup" text="Créer une sauvegarde…"/>
+                    <Button onAction="#restoreBackup" text="Restaurer…"/>
+                </HBox>
+                <Label fx:id="backupFeedbackLabel" styleClass="form-feedback" wrapText="true"/>
+            </VBox>
             <Region VBox.vgrow="ALWAYS"/>
             <Label styleClass="muted-label" text="Les préférences seront enregistrées dans une prochaine étape." wrapText="true"/>
         </VBox>

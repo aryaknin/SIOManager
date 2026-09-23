@@ -21,9 +21,6 @@ public record ResourceNode(
             throw new IllegalArgumentException("Un fichier ne peut pas contenir de ressources");
         }
 
-        if (type.isContainer() && localPath != null) {
-            throw new IllegalArgumentException("Un dossier logique ne doit pas pointer vers un fichier");
-        }
     }
 
     public boolean isContainer() {

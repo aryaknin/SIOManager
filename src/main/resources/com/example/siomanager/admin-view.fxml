@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane prefHeight="680.0" prefWidth="1040.0" stylesheets="@styles/application.css"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.siomanager.AdminController"
+            styleClass="admin-root">
+    <top>
+        <VBox spacing="5.0" styleClass="admin-header">
+            <padding><Insets bottom="14.0" left="18.0" right="18.0" top="16.0"/></padding>
+            <Label styleClass="admin-title" text="Administration"/>
+            <Label styleClass="muted-label" text="Comptes, activité et corbeille de SIOManager"/>
+        </VBox>
+    </top>
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE">
+            <tabs>
+                <Tab text="UTILISATEURS">
+                    <content>
+                        <VBox spacing="12.0">
+                            <padding><Insets bottom="16.0" left="18.0" right="18.0" top="14.0"/></padding>
+                            <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                <TextField fx:id="userSearchField" promptText="Rechercher un compte…" prefWidth="280.0"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Button onAction="#refreshUsers" text="Actualiser"/>
+                                <Button onAction="#toggleSelectedAccount" text="Activer / désactiver"/>
+                                <Button onAction="#deleteSelectedAccount" text="Supprimer…"/>
+                            </HBox>
+                            <TableView fx:id="usersTable" prefHeight="250.0" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="usernameColumn" prefWidth="140.0" text="Identifiant"/>
+                                    <TableColumn fx:id="displayNameColumn" prefWidth="240.0" text="Nom affiché"/>
+                                    <TableColumn fx:id="roleColumn" prefWidth="130.0" text="Rôle"/>
+                                    <TableColumn fx:id="statusColumn" prefWidth="110.0" text="État"/>
+                                    <TableColumn fx:id="createdColumn" prefWidth="170.0" text="Créé le"/>
+                                </columns>
+                            </TableView>
+                            <HBox spacing="16.0">
+                                <VBox spacing="8.0" styleClass="admin-card" HBox.hgrow="ALWAYS">
+                                    <Label styleClass="card-title" text="Nouveau compte"/>
+                                    <GridPane hgap="10.0" vgap="7.0">
+                                        <Label text="Identifiant" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                                        <TextField fx:id="usernameField" promptText="ex. dupont.j" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                        <Label text="Nom affiché" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                                        <TextField fx:id="displayNameField" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                        <Label text="Rôle" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                                        <ComboBox fx:id="roleCombo" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                                        <Label text="Mot de passe" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                                        <PasswordField fx:id="passwordField" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                                        <Label text="Confirmation" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+                                        <PasswordField fx:id="confirmationField" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                                    </GridPane>
+                                    <Button onAction="#createAccount" text="Créer le compte"/>
+                                </VBox>
+                                <VBox spacing="8.0" styleClass="admin-card" HBox.hgrow="ALWAYS">
+                                    <Label styleClass="card-title" text="Modifier le compte sélectionné"/>
+                                    <TextField fx:id="editDisplayNameField" promptText="Nom affiché"/>
+                                    <ComboBox fx:id="editRoleCombo" maxWidth="1.7976931348623157E308"/>
+                                    <Button onAction="#updateSelectedAccount" text="Enregistrer le nom et le rôle"/>
+                                    <Separator/>
+                                    <PasswordField fx:id="resetPasswordField" promptText="Mot de passe temporaire"/>
+                                    <PasswordField fx:id="resetConfirmationField" promptText="Confirmation"/>
+                                    <Button onAction="#resetSelectedPassword" text="Réinitialiser le mot de passe"/>
+                                </VBox>
+                            </HBox>
+                            <Label fx:id="feedbackLabel" styleClass="form-feedback" wrapText="true"/>
+                        </VBox>
+                    </content>
+                </Tab>
+                <Tab text="JOURNAL D’ACTIVITÉ">
+                    <content>
+                        <VBox spacing="10.0">
+                            <padding><Insets bottom="16.0" left="18.0" right="18.0" top="14.0"/></padding>
+                            <HBox alignment="CENTER_LEFT">
+                                <Label styleClass="muted-label" text="Les 500 événements les plus récents"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Button onAction="#refreshAudit" text="Actualiser"/>
+                            </HBox>
+                            <TableView fx:id="auditTable" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="auditDateColumn" prefWidth="170.0" text="Date"/>
+                                    <TableColumn fx:id="auditActorColumn" prefWidth="140.0" text="Utilisateur"/>
+                                    <TableColumn fx:id="auditActionColumn" prefWidth="200.0" text="Action"/>
+                                    <TableColumn fx:id="auditDetailsColumn" prefWidth="460.0" text="Détails"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </content>
+                </Tab>
+                <Tab text="CORBEILLE">
+                    <content>
+                        <VBox spacing="10.0">
+                            <padding><Insets bottom="16.0" left="18.0" right="18.0" top="14.0"/></padding>
+                            <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                <Label styleClass="muted-label" text="Les ressources supprimées peuvent être restaurées."/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Button onAction="#restoreSelectedTrash" text="Restaurer"/>
+                                <Button onAction="#purgeSelectedTrash" text="Supprimer définitivement…"/>
+                            </HBox>
+                            <TableView fx:id="trashTable" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="trashNameColumn" prefWidth="240.0" text="Ressource"/>
+                                    <TableColumn fx:id="trashOwnerColumn" prefWidth="150.0" text="Supprimée par"/>
+                                    <TableColumn fx:id="trashDateColumn" prefWidth="180.0" text="Date"/>
+                                    <TableColumn fx:id="trashPathColumn" prefWidth="420.0" text="Emplacement d’origine"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </content>
+                </Tab>
+            </tabs>
+        </TabPane>
+    </center>
+</BorderPane>

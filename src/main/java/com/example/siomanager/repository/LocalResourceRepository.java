@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class LocalResourceRepository {
+    public static final String CONTENT_DIRECTORY_PROPERTY = "siomanager.sharedResourcesDir";
     private static final Map<String, String> DISPLAY_NAMES = displayNames();
     private static final Set<String> SOURCE_EXTENSIONS = Set.of(
             "java", "html", "htm", "css", "js", "ts", "xml", "fxml", "sql", "sh", "bash",
@@ -29,7 +30,7 @@ public class LocalResourceRepository {
     private final Collator collator = Collator.getInstance(Locale.FRENCH);
 
     public LocalResourceRepository() {
-        this(Path.of(System.getProperty("user.dir"), "demo-content"));
+        this(resolveDefaultContentRoot());
     }
 
     public LocalResourceRepository(Path contentRoot) {
@@ -39,6 +40,13 @@ public class LocalResourceRepository {
 
     public Path contentRoot() {
         return contentRoot;
+    }
+
+    private static Path resolveDefaultContentRoot() {
+        String configuredDirectory = System.getProperty(CONTENT_DIRECTORY_PROPERTY);
+        return configuredDirectory == null || configuredDirectory.isBlank()
+                ? Path.of(System.getProperty("user.dir"), "demo-content")
+                : Path.of(configuredDirectory);
     }
 
     public ResourceNode loadTree() throws IOException {
